@@ -29,23 +29,22 @@ Production-style data pipeline orchestration project focused on ingestion workfl
 - DuckDB
 
 ---
-
 ## Repository Structure
 
+```text
 my-taxi-pipeline-platform/
-
 │
-
 ├── pipeline/
 │   ├── assets/
 │   │   ├── ingestion/
 │   │   ├── reports/
 │   │   └── staging/
-│   │
 │   └── pipeline.yml
-│
 ├── README.md
 └── .gitignore
+```
+
+
 
 ---
 
