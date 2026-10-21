@@ -3,7 +3,7 @@ name: reports.trips_report
 type: duckdb.sql
 
 depends:
-  - staging.trips
+  - ingestion.trips
 
 materialization:
   type: table
@@ -16,5 +16,5 @@ SELECT
     COUNT(*) AS trip_count,
     SUM(fare_amount) AS total_fare,
     AVG(fare_amount) AS avg_fare
-FROM staging.trips
+FROM ingestion.trips
 GROUP BY 1, 2, 3

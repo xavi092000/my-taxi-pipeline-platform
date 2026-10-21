@@ -17,8 +17,8 @@ import os
 import tempfile
 import time
 
-import numpy as np
 import pandas as pd
+import pyarrow as pa
 import pyarrow.parquet as pq
 import requests
 from dateutil.relativedelta import relativedelta
@@ -55,26 +55,6 @@ def month_starts(start_date: str, end_date: str):
     while current <= end:
         yield current
         current = current + relativedelta(months=1)
-
-
-def optimize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    print("[ingestion.trips] optimize_dataframe() start")
-    print(f"[ingestion.trips] shape before optimize: {df.shape}")
-
-    float_cols = df.select_dtypes(include=["float64"]).columns
-    int_cols = df.select_dtypes(include=["int64"]).columns
-
-    print(f"[ingestion.trips] float64 cols: {list(float_cols)}")
-    print(f"[ingestion.trips] int64 cols: {list(int_cols)}")
-
-    for col in float_cols:
-        df[col] = pd.to_numeric(df[col], downcast="float")
-
-    for col in int_cols:
-        df[col] = pd.to_numeric(df[col], downcast="integer")
-
-    print("[ingestion.trips] optimize_dataframe() done")
-    return df
 
 
 def download_to_tempfile(session: requests.Session, url: str):
@@ -124,14 +104,14 @@ def download_to_tempfile(session: requests.Session, url: str):
     return None
 
 
-def read_parquet_chunked(path: str, columns):
-    print(f"[ingestion.trips] read_parquet_chunked() start for {path}")
+def iter_parquet_row_groups(path: str, columns):
+    # Yield one PyArrow table per row group. Returning one large DataFrame for
+    # a full month exceeds Bruin's Arrow IPC block size limit.
+    print(f"[ingestion.trips] iter_parquet_row_groups() start for {path}")
     print(f"[ingestion.trips] requested columns: {columns}")
 
     parquet = pq.ParquetFile(path)
     print(f"[ingestion.trips] num_row_groups={parquet.num_row_groups}")
-
-    dfs = []
 
     for i in range(parquet.num_row_groups):
         print(f"[ingestion.trips] reading row group {i + 1}/{parquet.num_row_groups}")
@@ -140,13 +120,7 @@ def read_parquet_chunked(path: str, columns):
             f"[ingestion.trips] row group {i + 1} table rows={table.num_rows}, "
             f"cols={table.num_columns}"
         )
-        df = table.to_pandas()
-        print(f"[ingestion.trips] row group {i + 1} df shape={df.shape}")
-        dfs.append(df)
-
-    result = pd.concat(dfs, ignore_index=True)
-    print(f"[ingestion.trips] read_parquet_chunked() done, final shape={result.shape}")
-    return result
+        yield table
 
 
 def materialize():
@@ -173,7 +147,8 @@ def materialize():
     )
     print("[ingestion.trips] requests session initialized")
 
-    dataframes = []
+    found = False
+    target_schema = None
 
     for taxi_type in taxi_types:
         print(f"[ingestion.trips] processing taxi_type={taxi_type}")
@@ -196,53 +171,32 @@ def materialize():
                 continue
 
             try:
-                print(f"[ingestion.trips] starting parquet read for {path}")
-                df = read_parquet_chunked(path, DEFAULT_COLUMNS)
-                print(f"[ingestion.trips] parquet read complete for {year}-{month}")
+                print(f"[ingestion.trips] starting parquet streaming for {path}")
+
+                for table in iter_parquet_row_groups(path, DEFAULT_COLUMNS):
+                    table = table.append_column(
+                        "taxi_type",
+                        pa.array([taxi_type] * table.num_rows, type=pa.string()),
+                    )
+
+                    if target_schema is None:
+                        target_schema = table.schema
+                    elif table.schema != target_schema:
+                        print("[ingestion.trips] casting row group to the first schema")
+                        table = table.cast(target_schema)
+
+                    found = True
+                    print(
+                        f"[ingestion.trips] yielding {taxi_type} {year}-{month} "
+                        f"rows={table.num_rows}, cols={table.num_columns}"
+                    )
+                    yield table
             finally:
                 print(f"[ingestion.trips] removing temp file {path}")
                 os.remove(path)
 
-            print(f"[ingestion.trips] adding taxi_type column={taxi_type}")
-            df["taxi_type"] = taxi_type
-
-            df = optimize_dataframe(df)
-
-            print(
-                f"[ingestion.trips] loaded {taxi_type} {year}-{month} "
-                f"shape={df.shape}"
-            )
-
-            dataframes.append(df)
-            print(f"[ingestion.trips] dataframes collected so far: {len(dataframes)}")
-
-    if not dataframes:
+    if not found:
         print("[ingestion.trips] no data loaded")
-        return pd.DataFrame()
-
-    print("[ingestion.trips] concatenating all monthly dataframes")
-    result_df = pd.concat(dataframes, ignore_index=True)
-
-    print(f"[ingestion.trips] final dataframe shape: {result_df.shape}")
-    print(f"[ingestion.trips] columns: {list(result_df.columns)}")
-    print(f"[ingestion.trips] dtypes:\n{result_df.dtypes}")
-    print("[ingestion.trips] checking for NaN/inf values...")
-
-    nan_counts = result_df.isna().sum()
-    if nan_counts.sum() > 0:
-        print(f"[ingestion.trips] NaN counts per column:\n{nan_counts[nan_counts > 0]}")
-    else:
-        print("[ingestion.trips] no NaN values found")
-
-    inf_cols = []
-    for col in result_df.select_dtypes(include=[np.number]).columns:
-        if np.isinf(result_df[col]).any():
-            inf_cols.append(col)
-
-    if inf_cols:
-        print(f"[ingestion.trips] infinity values found in columns: {inf_cols}")
-    else:
-        print("[ingestion.trips] no infinity values found")
+        return
 
     print("[ingestion.trips] materialize() done")
-    return result_df
