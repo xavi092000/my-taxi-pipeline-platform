@@ -1,75 +1,24 @@
-# My Taxi Pipeline Platform
+# NYC Taxi Pipeline with Bruin
 
-Production-style data pipeline orchestration project focused on ingestion workflows, SQL transformations, reporting layers, and modern analytics pipeline engineering.
+A learning project that ingests NYC taxi data and organizes DuckDB transformations into ingestion, staging, and reporting assets.
 
----
+## Origin and scope
 
-## Core Engineering Domains
+The [pipeline configuration](pipeline/pipeline.yml) identifies its origin as a **Zoomcamp template**. This repository is an adapted course exercise, not an independently invented orchestration framework or a deployed production platform.
 
-- Data Pipeline Engineering
-- Analytics Engineering
-- SQL Transformation Pipelines
-- Workflow Orchestration
-- Data Ingestion
-- Reporting Pipelines
-- ELT Architecture
-- Production-style Pipeline Design
+The current implementation contains Python ingestion, a payment lookup, SQL staging, and a reporting model. These files are the reviewable deliverable; the exact division between upstream template code and personal additions has not been independently reconstructed.
 
----
+## Where to start
 
-## Technologies
+- [Pipeline configuration](pipeline/pipeline.yml)
+- [Python ingestion](pipeline/assets/ingestion/trips.py)
+- [Staging model](pipeline/assets/staging/trips.sql)
+- [Reporting model](pipeline/assets/reports/trips_report.sql)
 
-- Python
-- SQL
-- YAML Pipelines
-- Data Ingestion
-- Analytics Pipelines
-- Workflow Orchestration
-- Bruin-style Pipeline Orchestration
-- DuckDB
+## Runtime requirements
 
----
-## Repository Structure
+Use Bruin with a local `duckdb-default` connection, the Python dependencies in [ingestion/requirements.txt](pipeline/assets/ingestion/requirements.txt), and access to the taxi data URLs used by the ingestion asset. Consult the [upstream course](https://github.com/DataTalksClub/data-engineering-zoomcamp) and the Bruin documentation linked in the configuration for setup.
 
-```text
-my-taxi-pipeline-platform/
-│
-├── pipeline/
-│   ├── assets/
-│   │   ├── ingestion/
-│   │   ├── reports/
-│   │   └── staging/
-│   └── pipeline.yml
-├── README.md
-└── .gitignore
-```
+No public automated runtime validation is included. The template comments and local connection requirements should be reviewed before execution. Successful execution in a fresh environment has not been established by the documentation cleanup.
 
-
-
----
-
-## Key Engineering Features
-
-- YAML-driven pipeline orchestration
-- SQL staging and reporting workflows
-- Python ingestion layer
-- Modular pipeline assets architecture
-- Reporting and transformation layers
-- Production-style analytics workflow organization
-- Structured ELT pipeline design
-
----
-
-## Objective
-
-This repository demonstrates production-style analytics pipeline orchestration using modular assets, ingestion workflows, SQL transformations, and reporting pipelines.
-
-The project explores modern data engineering concepts including workflow orchestration, ingestion automation, staged transformations, and reporting pipeline design.
-
----
-
-## Author
-
-Felix Brillant
-
-AI / Cloud Data Engineering
+Maintained by Felix Brillant.
