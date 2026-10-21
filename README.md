@@ -6,7 +6,7 @@ This repository is a learning exercise based on a course template, not an indepe
 
 ## Origin and scope
 
-The [pipeline configuration](pipeline/pipeline.yml) identifies its origin as a **course template**. This repository is an adapted course exercise, not an independently invented orchestration framework or a deployed production platform.
+This repository is an adapted course exercise based on a course template. The [pipeline configuration](pipeline/pipeline.yml) describes it as a pedagogical NYC Taxi project built around Bruin, Python ingestion, and a DuckDB SQL report. It is not an independently invented orchestration framework or a deployed production platform.
 
 The current implementation contains Python ingestion, a CSV payment lookup, and a reporting model. There is no staging asset. These files are the reviewable deliverable.
 
